@@ -327,7 +327,7 @@ export default function Home() {
       </section>
 
       {/* TESTIMONIALS SECTION */}
-      <section id="testmonials" data-aos="zoom-in" className="bg-zinc-950 py-20 px-6 md:px-20">
+      <section id="testimonials" data-aos="zoom-in" className="bg-zinc-950 py-20 px-6 md:px-20">
         <div className="max-w-6xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-purple-500 mb-4">What Clients Say</h2>
           <p className="text-gray-400 mb-12 max-w-2xl mx-auto">
