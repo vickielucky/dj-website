@@ -28,9 +28,12 @@ export default function Home() {
     event: "",
     date: "",
     message: "",
+    company: "",
   });
 
   const [status, setStatus] = useState("idle"); // idle | sending | success | error
+  const [errorMessage, setErrorMessage] = useState("");
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -39,22 +42,47 @@ export default function Home() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("sending");
+    setErrorMessage("");
+
+    if (!siteKey) {
+      setErrorMessage("Security check is not configured. Please contact the site owner.");
+      setStatus("error");
+      return;
+    }
+
+    if (!window.grecaptcha) {
+      setErrorMessage("Security check is still loading. Please try again in a moment.");
+      setStatus("error");
+      return;
+    }
 
     try {
+      const token = await new Promise((resolve, reject) => {
+        window.grecaptcha.ready(() => {
+          window.grecaptcha
+            .execute(siteKey, { action: "booking" })
+            .then(resolve)
+            .catch(reject);
+        });
+      });
+
       const res = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, token }),
       });
 
+      const result = await res.json();
       if (res.ok) {
         setStatus("success");
-        setFormData({ name: "", email: "", event: "", date: "", message: "" });
+        setFormData({ name: "", email: "", event: "", date: "", message: "", company: "" });
       } else {
         setStatus("error");
+        setErrorMessage(result?.error || "Unable to send request. Please try again.");
       }
     } catch (error) {
       console.error(error);
+      setErrorMessage("Unable to send request. Please try again later.");
       setStatus("error");
     }
   };
@@ -75,6 +103,28 @@ export default function Home() {
       clearInterval(aboutTimer);
     };
   }, [heroImages.length, aboutImages.length]);
+
+  useEffect(() => {
+    if (!siteKey) return;
+
+    const scriptId = "recaptcha-v3-script";
+    if (document.getElementById(scriptId)) {
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+    script.async = true;
+    document.head.appendChild(script);
+
+    return () => {
+      const existing = document.getElementById(scriptId);
+      if (existing) {
+        document.head.removeChild(existing);
+      }
+    };
+  }, [siteKey]);
 
   return (
     <main className="w-full text-white overflow-x-hidden">
@@ -351,6 +401,20 @@ export default function Home() {
               onChange={handleChange}
               className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-purple-500"
             ></textarea>
+            <input
+              type="text"
+              name="company"
+              value={formData.company}
+              onChange={handleChange}
+              autoComplete="off"
+              tabIndex="-1"
+              aria-hidden="true"
+              className="hidden"
+            />
+
+            {status === "error" && errorMessage ? (
+              <p className="text-sm text-red-400">{errorMessage}</p>
+            ) : null}
 
             <button
               type="submit"
